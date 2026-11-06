@@ -182,7 +182,9 @@ function render() {
 
 function renderLots(s) {
   if (!s.lots.length) return [el('div', { class: 'empty' }, 'Лотов нет')];
-  return s.lots.map((l) => {
+  const covN = (l) => s.items.filter((i) => i.lot_id === l.id && i.best).length;
+  const lots = s.lots.map((l, k) => ({ l, k, n: covN(l) })).sort((a, b) => (b.n > 0) - (a.n > 0) || a.k - b.k).map((x) => x.l);
+  return lots.map((l) => {
     const its = s.items.filter((i) => i.lot_id === l.id), cov = its.filter((i) => i.best);
     const sm = its.reduce((a, i) => a + Number(i.smeta_sum || 0), 0);
     const P = profitOf(cov), be = P.be, m = cov.length ? P.margin : null;
@@ -216,6 +218,7 @@ function itemCards(s) {
   const q = S.q.trim().toLowerCase();
   const list = s.items.filter((i) => (!S.lot || i.lot_id === S.lot) && (!q || (i.name + ' ' + (i.best ? i.best.supplier : '') + ' ' + i.offers.map((o) => o.supplier).join(' ')).toLowerCase().includes(q)));
   if (!list.length) return [el('div', { class: 'empty' }, 'Ничего не найдено')];
+  list.sort((a, b) => (!!b.best - !!a.best));
   return list.map((i) => {
     const card = el('div', { class: 'card', style: mstripe(i.margin) },
       el('div', { class: 't' }, i.name),
