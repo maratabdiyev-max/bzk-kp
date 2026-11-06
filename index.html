@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>КП Байзакова</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: var(--tg-theme-bg-color, #ffffff);
+    --bg2: var(--tg-theme-secondary-bg-color, #f2f3f5);
+    --fg: var(--tg-theme-text-color, #111111);
+    --muted: var(--tg-theme-hint-color, #7d7f85);
+    --link: var(--tg-theme-link-color, #2a7de1);
+    --btn: var(--tg-theme-button-color, #2a7de1);
+    --btn-fg: var(--tg-theme-button-text-color, #ffffff);
+    --line: color-mix(in srgb, var(--fg) 10%, transparent);
+    --good: #1f9d55; --bad: #d64545; --warn: #c98a00;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg2); color: var(--fg); font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 12px 16px 8px; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 18px; margin: 0; }
+  .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  select, input[type=search] { width: 100%; font: inherit; color: var(--fg); background: var(--bg2); border: 0; border-radius: 10px; padding: 9px 12px; margin-top: 8px; }
+  .tabs { display: flex; gap: 6px; margin-top: 8px; overflow-x: auto; }
+  .tabs button { flex: 1 0 auto; font: inherit; font-size: 14px; border: 0; border-radius: 10px; padding: 7px 12px; background: var(--bg2); color: var(--fg); }
+  .tabs button.on { background: var(--btn); color: var(--btn-fg); }
+  main { padding: 12px 16px 32px; }
+  .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+  .kpi { background: var(--bg); border-radius: 12px; padding: 10px 12px; }
+  .kpi .l { color: var(--muted); font-size: 12px; }
+  .kpi.wide { grid-column: 1 / -1; }
+  .kpi .s { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .kpi .v { font-size: 20px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .card { background: var(--bg); border-radius: 12px; padding: 12px; margin-bottom: 8px; }
+  .row { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .t { font-weight: 500; }
+  .m { color: var(--muted); font-size: 13px; }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .good { color: var(--good); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip { font: inherit; font-size: 13px; border: 0; border-radius: 999px; padding: 5px 10px; background: var(--bg); color: var(--fg); }
+  .chip.on { background: var(--btn); color: var(--btn-fg); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-top: 8px; font-size: 13px; }
+  .offers { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 6px; }
+  .offers div { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 3px 0; }
+  .empty, .msg { text-align: center; color: var(--muted); padding: 32px 12px; }
+  .msg b { color: var(--fg); display: block; margin-bottom: 6px; }
+  a { color: var(--link); }
+  .bar { height: 6px; border-radius: 3px; background: var(--bg2); margin-top: 8px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--btn); }
+  .files { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .q { margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--warn) 12%, transparent); font-size: 13px; }
+  .draft { margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: var(--bg2); font-size: 13px; white-space: pre-wrap; }
+  .draft b, .q b { display: block; font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 2px; }
+  .copybtn { font: inherit; font-size: 13px; border: 0; border-radius: 8px; padding: 6px 10px; margin-top: 6px; background: var(--btn); color: var(--btn-fg); }
+  .filebtn { font: inherit; font-size: 13px; text-align: left; border: 0; border-radius: 8px; padding: 8px 10px; background: var(--bg2); color: var(--link); }
+</style>
+</head>
+<body>
+<header>
+  <h1>КП Байзакова</h1>
+  <div class="sub" id="sub">Загрузка…</div>
+  <select id="rfq" aria-label="Запрос"></select>
+  <nav class="tabs" id="tabs">
+    <button data-t="lots" class="on">Лоты</button>
+    <button data-t="items">Позиции</button>
+    <button data-t="journal">Журнал</button>
+    <button data-t="offers">КП</button>
+  </nav>
+</header>
+<main id="main"><div class="msg">Загрузка…</div></main>
+
+<script>
+// === Настройка: адрес серверной функции Supabase ===
+const API = 'https://jxurtryppdycoaskzowz.supabase.co/functions/v1/kp-api';
+
+const tg = window.Telegram && Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+const S = { data: null, rfq: 'all', tab: 'lots', q: '', lot: null, status: 'все' };
+const fmt = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
+const money = (v) => v == null ? '—' : fmt.format(v);
+const pct = (x) => x == null || !isFinite(x) ? '' : (x > 0 ? '+' : '') + (x * 100).toFixed(1).replace('.', ',') + '%';
+const cls = (x) => x == null ? '' : x > 0.0001 ? 'bad' : x < -0.0001 ? 'good' : '';
+// Доходность = (смета − КП) / смета. От 20% — зелёный. Ниже 20% и минус — красный: чем хуже, тем насыщеннее.
+const MIN_MARGIN = 0.20;
+const mcol = (m) => {
+  if (m == null || !isFinite(m)) return null;
+  if (m >= MIN_MARGIN) return '#1f9d55';
+  const t = Math.max(0, Math.min(1, (MIN_MARGIN - m) / 0.40)); // 20% → светло-красный, −20% и хуже → тёмно-красный
+  const a = [232, 110, 110], b = [165, 0, 20];
+  return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * t)).join(',')})`;
+};
+const mstyle = (m) => { const c = mcol(m); return c ? `color:${c};font-weight:600` : ''; };
+const mstripe = (m) => { const c = mcol(m); return c ? `border-left:4px solid ${c}` : ''; };
+const mln = (v) => (v / 1e6).toFixed(1).replace('.', ',') + ' млн ₸';
+// Стоимость КП за единицу = цена оборудования + монтаж/установка из КП (НДС не убираем — как в КП)
+const tot = (o) => Number(o.price_unit || 0) + Number(o.install_unit || 0) + Number(o.delivery_unit || 0) + Number(o.customs_unit || 0); // + доставка + растаможка (импорт)
+const sumOf = (list, f) => list.reduce((a, x) => a + Number(f(x) || 0), 0);
+const profitOf = (cov) => { const sm = sumOf(cov, (i) => i.smeta_sum), be = sumOf(cov, (i) => i.best_sum); return { sm, be, profit: sm - be, margin: sm ? (sm - be) / sm : null }; };
+const el = (tag, attrs = {}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) { if (k === 'class') e.className = v; else if (k === 'on') e.onclick = v; else e.setAttribute(k, v); }
+  for (const k of kids.flat()) if (k != null) e.append(k instanceof Node ? k : String(k));
+  return e;
+};
+const main = document.getElementById('main');
+const openUrl = (u) => { if (!u) return; if (tg && tg.openLink) tg.openLink(u); else window.open(u, '_blank'); };
+const fileBtns = (list) => list.length ? el('div', { class: 'files' }, list.map((f) => el('button', { class: 'filebtn', on: (e) => { e.stopPropagation(); openUrl(f.url); } }, '📄 ' + f.title))) : null;
+
+async function load() {
+  const initData = tg ? tg.initData : '';
+  if (!initData) { showMsg('Откройте через Telegram', 'Это приложение работает только внутри Telegram-бота.'); return; }
+  try {
+    const r = await fetch(API, { method: 'POST', headers: { 'content-type': 'text/plain;charset=UTF-8' }, body: initData });
+    const txt = await r.text();
+    let d; try { d = JSON.parse(txt); } catch { showMsg('Ошибка сервера', `Код ${r.status}: ${txt.slice(0, 200)}`); return; }
+    if (r.status === 403) { showMsg('Нет доступа', `Отправьте администратору ваш Telegram ID: ${d.tg_id}`); return; }
+    if (!r.ok) { showMsg('Ошибка', d.error || r.statusText); return; }
+    S.data = prepare(d);
+    const sel = document.getElementById('rfq');
+    sel.replaceChildren(el('option', { value: 'all' }, 'Все запросы'), ...d.rfq.map((x) => el('option', { value: String(x.id) }, `${x.code} · ${x.title}`)));
+    sel.value = S.rfq;
+    document.getElementById('sub').textContent = `Обновлено ${new Date(d.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+    render();
+  } catch (e) { showMsg('Нет связи с сервером', String(e && e.message || e) + ' — проверьте интернет и откройте снова.'); }
+}
+function showMsg(t, m) { main.replaceChildren(el('div', { class: 'msg' }, el('b', {}, t), m)); document.getElementById('sub').textContent = ''; }
+
+function prepare(d) {
+  const lotById = new Map(d.lots.map((l) => [l.id, l]));
+  const offersByItem = new Map();
+  d.offers.filter((o) => Number(o.price_unit) > 0).forEach((o) => { (offersByItem.get(o.item_id) || offersByItem.set(o.item_id, []).get(o.item_id)).push(o); });
+  const items = d.items.map((it) => {
+    const os = (offersByItem.get(it.id) || []).slice().sort((a, b) => tot(a) - tot(b));
+    const best = os[0];
+    return { ...it, lot: lotById.get(it.lot_id), offers: os, best,
+      best_sum: best ? tot(best) * it.qty : null,
+      delta: best && it.smeta_price ? tot(best) / it.smeta_price - 1 : null,
+      margin: best && it.smeta_price ? 1 - tot(best) / it.smeta_price : null,
+      profit: best ? Number(it.smeta_sum || it.smeta_price * it.qty || 0) - tot(best) * it.qty : null };
+  });
+  return { ...d, lotById, items };
+}
+
+function scope() {
+  const d = S.data, f = (x) => S.rfq === 'all' || String(x.rfq_id) === S.rfq;
+  return { files: (d.files || []).filter(f), lots: d.lots.filter(f), items: d.items.filter(f), letters: d.letters.filter(f), offers: d.offers.filter((o) => Number(o.price_unit) > 0 && d.items.some((i) => i.id === o.item_id && f(i))) };
+}
+
+function kpis(s) {
+  const cov = s.items.filter((i) => i.best);
+  const P = profitOf(cov);
+  const replied = s.letters.filter((l) => l.status !== 'ждём').length;
+  const share = s.items.length ? cov.length / s.items.length : 0;
+  const low = cov.filter((i) => i.margin < MIN_MARGIN).length;
+  return el('div', { class: 'kpis' },
+    el('div', { class: 'kpi' }, el('div', { class: 'l' }, 'Отправлено запросов'), el('div', { class: 'v' }, fmt.format(s.letters.length))),
+    el('div', { class: 'kpi' }, el('div', { class: 'l' }, 'Ответили'), el('div', { class: 'v' }, fmt.format(replied))),
+    el('div', { class: 'kpi wide' }, el('div', { class: 'l' }, 'Отработано позиций'),
+      el('div', { class: 'v' }, `${cov.length} из ${s.items.length} · ${(share * 100).toFixed(1).replace('.', ',')}%`),
+      el('div', { class: 'bar' }, el('i', { style: `width:${Math.round(share * 100)}%` }))),
+    el('div', { class: 'kpi wide', style: cov.length ? mstripe(P.margin) : '' }, el('div', { class: 'l' }, 'Общая прибыль (смета − КП)'),
+      el('div', { class: 'v', style: cov.length ? mstyle(P.margin) : '' }, cov.length ? mln(P.profit) : '—'),
+      cov.length ? el('div', { class: 's' }, `доходность ${pct(P.margin)} · смета ${mln(P.sm)} − КП ${mln(P.be)}`) : null,
+      cov.length ? el('div', { class: 's' }, `по ${cov.length} отработанным позициям` + (low ? ` · доходность ниже 20%: ${low} поз.` : '')) : el('div', { class: 's' }, 'КП ещё нет')));
+}
+
+function render() {
+  if (!S.data) return;
+  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === S.tab));
+  const s = scope();
+  const out = [kpis(s)];
+  if (S.tab === 'lots') out.push(...renderLots(s));
+  if (S.tab === 'items') out.push(...renderItems(s));
+  if (S.tab === 'journal') out.push(...renderJournal(s));
+  if (S.tab === 'offers') out.push(...renderOffers(s));
+  main.replaceChildren(...out);
+}
+
+function renderLots(s) {
+  if (!s.lots.length) return [el('div', { class: 'empty' }, 'Лотов нет')];
+  return s.lots.map((l) => {
+    const its = s.items.filter((i) => i.lot_id === l.id), cov = its.filter((i) => i.best);
+    const sm = its.reduce((a, i) => a + Number(i.smeta_sum || 0), 0);
+    const P = profitOf(cov), be = P.be, m = cov.length ? P.margin : null;
+    const letters = s.letters.filter((x) => x.lot_id === l.id), rep = letters.filter((x) => x.status !== 'ждём').length;
+    const rfq = S.data.rfq.find((r) => r.id === l.rfq_id);
+    return el('div', { class: 'card', style: mstripe(m), on: () => { S.tab = 'items'; S.lot = l.id; render(); window.scrollTo(0, 0); } },
+      el('div', { class: 'row' }, el('div', { class: 't' }, `${S.rfq === 'all' && rfq ? rfq.code + ' · ' : ''}${l.no}. ${l.name}`), el('div', { class: 'num', style: mstyle(m) }, pct(m))),
+      el('div', { class: 'grid2' },
+        el('div', { class: 'm' }, 'Смета, ₸'), el('div', { class: 'num' }, money(sm)),
+        el('div', { class: 'm' }, 'Позиций с КП'), el('div', { class: 'num' }, `${cov.length} из ${its.length}`),
+        el('div', { class: 'm' }, 'Лучшие КП, ₸'), el('div', { class: 'num' }, cov.length ? money(be) : '—'),
+        el('div', { class: 'm' }, 'Прибыль, ₸'), el('div', { class: 'num', style: mstyle(m) }, cov.length ? money(P.profit) : '—'),
+        el('div', { class: 'm' }, 'Ответили'), el('div', { class: 'num' }, `${rep} из ${letters.length}`)),
+      el('div', { class: 'bar' }, el('i', { style: `width:${its.length ? Math.round(cov.length / its.length * 100) : 0}%` })),
+      fileBtns(s.files.filter((f) => f.lot_id === l.id)));
+  });
+}
+
+function renderItems(s) {
+  const head = [];
+  const search = el('input', { type: 'search', placeholder: 'Поиск по позиции или поставщику' });
+  search.value = S.q; search.oninput = () => { S.q = search.value; const list = document.getElementById('itemlist'); list.replaceChildren(...itemCards(s)); };
+  head.push(search);
+  if (S.lot) {
+    const l = S.data.lotById.get(S.lot);
+    head.push(el('div', { class: 'chips', style: 'margin-top:8px' }, el('button', { class: 'chip on', on: () => { S.lot = null; render(); } }, `Лот ${l ? l.no + '. ' + l.name : ''} ✕`)));
+  }
+  return [...head, el('div', { id: 'itemlist', style: 'margin-top:8px' }, itemCards(s))];
+}
+function itemCards(s) {
+  const q = S.q.trim().toLowerCase();
+  const list = s.items.filter((i) => (!S.lot || i.lot_id === S.lot) && (!q || (i.name + ' ' + (i.best ? i.best.supplier : '') + ' ' + i.offers.map((o) => o.supplier).join(' ')).toLowerCase().includes(q)));
+  if (!list.length) return [el('div', { class: 'empty' }, 'Ничего не найдено')];
+  return list.map((i) => {
+    const card = el('div', { class: 'card', style: mstripe(i.margin) },
+      el('div', { class: 't' }, i.name),
+      el('div', { class: 'm' }, `${i.lot ? 'Лот ' + i.lot.no : ''} · ${fmt.format(i.qty)} ${i.unit || ''}`),
+      el('div', { class: 'grid2' },
+        el('div', { class: 'm' }, 'Смета, ₸/ед.'), el('div', { class: 'num' }, money(i.smeta_price)),
+        el('div', { class: 'm' }, 'Оборудование по КП, ₸/ед.'), el('div', { class: 'num' }, i.best ? money(i.best.price_unit) : 'нет КП'),
+        el('div', { class: 'm' }, 'Монтаж по КП, ₸/ед.'), el('div', { class: 'num' }, i.best ? (i.best.install_unit ? money(i.best.install_unit) : 'не указан') : '—'),
+        ...(i.best && i.best.delivery_unit ? [el('div', { class: 'm' }, 'Доставка, ₸/ед.'), el('div', { class: 'num' }, money(i.best.delivery_unit))] : []),
+        ...(i.best && i.best.customs_unit ? [el('div', { class: 'm' }, 'Растаможка (пошлина 8% + НДС 16%), ₸/ед.'), el('div', { class: 'num' }, money(i.best.customs_unit))] : []),
+        el('div', { class: 'm' }, 'Итого КП, ₸/ед.'), el('div', { class: 'num' }, i.best ? money(tot(i.best)) : '—'),
+        el('div', { class: 'm' }, 'Прибыль, ₸'), el('div', { class: 'num', style: mstyle(i.margin) }, i.best ? `${money(i.profit)} (${pct(i.margin)})` : '—'),
+        el('div', { class: 'm' }, 'Поставщик'), el('div', {}, i.best ? i.best.supplier : '—')));
+    if (i.offers.length) card.append(el('div', { class: 'offers' }, i.offers.map((o) => el('div', {}, el('span', {}, o.supplier + (o.orig_price ? ' · ' + o.orig_price : '')), el('span', { class: 'num', style: mstyle(i.smeta_price ? 1 - tot(o) / i.smeta_price : null) }, money(tot(o)) + (o.install_unit ? ' с монт.' : '') + (o.customs_unit ? ' и растам.' : ''))))));
+    const fl = s.files.filter((f) => f.lot_id === i.lot_id && i.offers.some((o) => o.letter_id === f.letter_id));
+    if (fl.length) card.append(fileBtns(fl));
+    return card;
+  });
+}
+
+const STATUSES = ['все', 'ждём', 'КП получено', 'вопрос', 'отказ', 'не доставлено'];
+function renderJournal(s) {
+  const chips = el('div', { class: 'chips' }, STATUSES.map((st) => {
+    const n = st === 'все' ? s.letters.length : s.letters.filter((l) => l.status === st).length;
+    return el('button', { class: 'chip' + (S.status === st ? ' on' : ''), on: () => { S.status = st; render(); } }, `${st} · ${n}`);
+  }));
+  const list = s.letters.filter((l) => S.status === 'все' || l.status === S.status);
+  const stc = (st) => st === 'КП получено' ? 'good' : st === 'отказ' || st === 'не доставлено' ? 'bad' : st === 'вопрос' ? 'warn' : 'm';
+  return [chips, ...(list.length ? list.map((l) => {
+    const lot = S.data.lotById.get(l.lot_id);
+    return el('div', { class: 'card' },
+      el('div', { class: 'row' }, el('div', { class: 't' }, l.supplier || l.email), el('div', { class: stc(l.status) }, l.status)),
+      el('div', { class: 'm' }, `${lot ? 'Лот ' + lot.no + '. ' + lot.name : ''}${l.lang === 'en' ? ' · EN' : ''}`),
+      l.supplier ? el('div', { class: 'm' }, l.email) : null,
+      l.kp_sum ? el('div', { class: 'num', style: 'margin-top:4px' }, `КП: ${money(l.kp_sum)} ₸ (как в КП)`) : null,
+      l.note ? el('div', { class: 'm', style: 'margin-top:4px' }, l.note) : null,
+      l.question ? el('div', { class: 'q' }, el('b', {}, '❓ Вопрос поставщика'), l.question) : null,
+      l.draft_reply ? el('div', { class: 'draft' }, el('b', {}, '✉️ Черновик ответа — не отправлен'), l.draft_reply) : null,
+      l.draft_reply ? el('button', { class: 'copybtn', on: (e) => { e.stopPropagation(); const b = e.target; const ok = () => { b.textContent = 'Скопировано ✓'; }; (navigator.clipboard ? navigator.clipboard.writeText(l.draft_reply).then(ok, () => { b.textContent = 'Не удалось скопировать'; }) : null); } }, 'Скопировать черновик') : null,
+      l.reply_date ? el('div', { class: 'm' }, `Ответ: ${l.reply_date}`) : null,
+      fileBtns(s.files.filter((f) => f.letter_id === l.id)));
+  }) : [el('div', { class: 'empty' }, 'Нет писем с таким статусом')])];
+}
+
+function renderOffers(s) {
+  const head = s.files.length ? [el('div', { class: 'card' }, el('div', { class: 't' }, 'Файлы КП'), fileBtns(s.files))] : [];
+  if (!s.offers.length) return [...head, el('div', { class: 'empty' }, 'КП пока не поступали')];
+  const itemById = new Map(S.data.items.map((i) => [i.id, i]));
+  const cards = s.offers.slice().sort((a, b) => String(b.offer_date || '').localeCompare(String(a.offer_date || ''))).map((o) => {
+    const i = itemById.get(o.item_id); const m = i && i.smeta_price ? 1 - tot(o) / i.smeta_price : null;
+    return el('div', { class: 'card', style: mstripe(m) },
+      el('div', { class: 'row' }, el('div', { class: 't' }, o.supplier), el('div', { class: 'num', style: mstyle(m) }, `${money(tot(o))} ₸ ${pct(m)}`)),
+      el('div', { class: 'm' }, `Оборудование ${money(o.price_unit)} ₸ + монтаж ${o.install_unit ? money(o.install_unit) + ' ₸' : 'не указан'}${o.delivery_unit ? ' + доставка ' + money(o.delivery_unit) + ' ₸' : ''}${o.customs_unit ? ' + растаможка ' + money(o.customs_unit) + ' ₸' : ''} (за ед.)`),
+      i ? el('div', { class: 'm' }, `Смета ${money(i.smeta_price)} ₸/ед. · прибыль ${money((i.smeta_price - tot(o)) * i.qty)} ₸ за ${fmt.format(i.qty)} ${i.unit || ''}`) : null,
+      el('div', { class: 'm' }, i ? i.name : o.item_id),
+      el('div', { class: 'm' }, [o.offer_date, o.lead_time, o.payment].filter(Boolean).join(' · ')),
+      o.orig_price ? el('div', { class: 'm' }, `В КП: ${o.orig_price}${o.currency && o.currency !== 'KZT' ? ' (' + o.currency + ')' : ''}`) : null,
+      o.note ? el('div', { class: 'm' }, o.note) : null);
+  });
+  return [...head, ...cards];
+}
+
+document.getElementById('rfq').onchange = (e) => { S.rfq = e.target.value; S.lot = null; render(); };
+document.querySelectorAll('#tabs button').forEach((b) => b.onclick = () => { S.tab = b.dataset.t; if (S.tab !== 'items') S.lot = null; render(); window.scrollTo(0, 0); });
+load();
+</script>
+</body>
+</html>
