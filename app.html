@@ -56,6 +56,9 @@
   .draft b, .q b { display: block; font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 2px; }
   .copybtn { font: inherit; font-size: 13px; border: 0; border-radius: 8px; padding: 6px 10px; margin-top: 6px; background: var(--btn); color: var(--btn-fg); }
   .filebtn { font: inherit; font-size: 13px; text-align: left; border: 0; border-radius: 8px; padding: 8px 10px; background: var(--bg2); color: var(--link); }
+  .rec { margin-top: 10px; padding: 9px 11px; border-radius: 10px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; border-left: 4px solid var(--rc); background: color-mix(in srgb, var(--rc) 11%, transparent); color: var(--fg); }
+  .rec b { display: block; font-size: 12px; color: var(--rc); margin-bottom: 3px; }
+  .rec .when { display: block; font-size: 11px; color: var(--muted); margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -105,6 +108,13 @@ const el = (tag, attrs = {}, ...kids) => {
   for (const [k, v] of Object.entries(attrs)) { if (k === 'class') e.className = v; else if (k === 'on') e.onclick = v; else e.setAttribute(k, v); }
   for (const k of kids.flat()) if (k != null) e.append(k instanceof Node ? k : String(k));
   return e;
+};
+const REC = { good: ['#1f9d55', '✅ Выгодно'], warn: ['#c98a00', '⚠️ Решить / уточнить'], bad: ['#d64545', '🔴 Дорого / проблема'], info: ['#7d7f85', 'ℹ️ Ждём'] };
+const recBox = (l) => {
+  if (!l || !l.rec_text) return null;
+  const [c, title] = REC[l.rec_level] || REC.info;
+  return el('div', { class: 'rec', style: `--rc:${c}` }, el('b', {}, 'Рекомендация · ' + title), l.rec_text,
+    l.rec_at ? el('span', { class: 'when' }, 'обновлено ' + new Date(l.rec_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })) : null);
 };
 const main = document.getElementById('main');
 const openUrl = (u) => { if (!u) return; if (tg && tg.openLink) tg.openLink(u); else window.open(u, '_blank'); };
@@ -199,7 +209,8 @@ function renderLots(s) {
         el('div', { class: 'm' }, 'Прибыль, ₸'), el('div', { class: 'num', style: mstyle(m) }, cov.length ? money(P.profit) : '—'),
         el('div', { class: 'm' }, 'Ответили'), el('div', { class: 'num' }, `${rep} из ${letters.length}`)),
       el('div', { class: 'bar' }, el('i', { style: `width:${its.length ? Math.round(cov.length / its.length * 100) : 0}%` })),
-      fileBtns(s.files.filter((f) => f.lot_id === l.id)));
+      fileBtns(s.files.filter((f) => f.lot_id === l.id)),
+      recBox(l));
   });
 }
 
@@ -211,6 +222,7 @@ function renderItems(s) {
   if (S.lot) {
     const l = S.data.lotById.get(S.lot);
     head.push(el('div', { class: 'chips', style: 'margin-top:8px' }, el('button', { class: 'chip on', on: () => { S.lot = null; render(); } }, `Лот ${l ? l.no + '. ' + l.name : ''} ✕`)));
+    const rb = recBox(l); if (rb) head.push(rb);
   }
   return [...head, el('div', { id: 'itemlist', style: 'margin-top:8px' }, itemCards(s))];
 }
